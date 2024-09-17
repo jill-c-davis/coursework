@@ -1,0 +1,229 @@
+---
+title: "Spotify Track Breakdown : IST 719 Wed 8pm Section "
+author: "Jill Davis"
+date: "08/18/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data
+
+```{r load in the data}
+
+library(readxl)
+spotify_data <- read.csv( "/Users/jill/Downloads/archive/tracks.csv"
+                          , header = TRUE
+                          , stringsAsFactors = FALSE)
+```
+
+# Section 3
+```{r decades}
+# First, group data by decade by adding a column 
+library(dplyr)
+spotify_data <-
+        spotify_data%>%
+ mutate(decade = case_when(
+         startsWith(release_date, "192") ~ "1920s"
+ ))
+
+# Then, add subsequent decades by subsetting the data 
+spotify_data$decade[spotify_data$release_date < 1940 & spotify_data$release_date >= 1930] <- c("1930s")
+spotify_data$decade[spotify_data$release_date < 1950 & spotify_data$release_date >= 1940] <- c("1940s")
+spotify_data$decade[spotify_data$release_date < 1960 & spotify_data$release_date >= 1950] <- c("1950s")
+spotify_data$decade[spotify_data$release_date < 1970 & spotify_data$release_date >= 1960] <- c("1960s")
+spotify_data$decade[spotify_data$release_date < 1980 & spotify_data$release_date >= 1970] <- c("1970s")
+spotify_data$decade[spotify_data$release_date < 1990 & spotify_data$release_date >= 1980] <- c("1980s")
+spotify_data$decade[spotify_data$release_date < 2000 & spotify_data$release_date >= 1990] <- c("1990s")
+spotify_data$decade[spotify_data$release_date < 2010 & spotify_data$release_date >= 2000] <- c("2000s")
+spotify_data$decade[spotify_data$release_date < 2020 & spotify_data$release_date >= 2010] <- c("2010s")
+spotify_data$decade[spotify_data$release_date < 2030 & spotify_data$release_date >= 2020] <- c("2020s")
+
+# verifying changes:
+head(spotify_data)
+tail(spotify_data)
+
+# Looks good! 
+```
+
+# Time to Plot
+
+```{r track duration}
+barplot(tapply(spotify_data$duration_ms, spotify_data$decade, mean)
+        , main = "Track duration over the decades"
+        , ylab = "Average Track Duration (in milliseconds)"
+        , col = c("#FBA164", "#0C5061", "#D6E0E4")) # pretty aqua color #50A3A4
+```
+
+# Does track duration correlate with track popularity?
+
+```{r duration v popularity}
+plot(spotify_data$duration_ms/60000, spotify_data$popularity
+     , pch = 16
+     , main = "track popularity by track duration"
+     , xlab = "duration (minutes)"
+     , ylab = "popularity"
+     , col = "#0f2a56"
+     , bty = "n")
+
+# It appears shorter songs are more popular in this data set
+```
+
+# Danceability (for funsies)
+
+```{r track danceability over time}
+plot(tapply(spotify_data$danceability, spotify_data$decade, mean)
+        , main = "Average Danceability Ratings from 1920 through 2020"
+        , ylab = "Danceability"
+        ,xlab = "Decades"
+        , col = c("#0C5061")
+        , type = "l"
+        , bty = "n")
+# Danceability seems to remain about the same over time
+mean(spotify_data$danceability)
+# = .56, about the same very average
+```
+
+# Is there a set of track traits which embody the sound of a specific time period?
+
+```{r zeitgeist}
+# not sure how to do this
+# attempts in ggplot: 
+# Attempt 1 : Managed to get the points in different colors, missing a line and a legend
+a <- tapply(spotify_data$loudness, spotify_data$decade, mean)
+b <- tapply(spotify_data$speechiness, spotify_data$decade, mean)
+c <- tapply(spotify_data$acousticness, spotify_data$decade, mean)
+d <- tapply(spotify_data$instrumentalness, spotify_data$decade, mean)
+e <- tapply(spotify_data$liveness, spotify_data$decade, mean)
+spotify_data_zeitgeist <- data.frame(a,b,c,d,e)
+
+colnames(spotify_data_zeitgeist)
+renamed <- c("mean.loudness", "mean.speechiness", "mean.acousticness"
+             , "mean.instrumentalness", "mean.liveness")
+colnames(spotify_data_zeitgeist) <- renamed
+
+spotify_data_zeitgeist$decade <- c("1920s", "1930s", "1940s", "1950s", "1960s"
+                                   , "1970s", "1980s", "1990s", "2000s", "2010s"
+                                   , "2020s")
+library(ggplot2)
+mean_plot <- ggplot(spotify_data_zeitgeist) + aes(x = decade) + #group = 1?
+        #geom_point(aes(y = mean.loudness)) +
+        geom_point(aes(y = mean.speechiness), col = "red") +
+        geom_point(aes(y = mean.acousticness), col = "blue") +
+        geom_point(aes(y = mean.instrumentalness), col = "purple") +
+        geom_point(aes(y = mean.liveness), col = "green") 
+mean_plot <- mean_plot + labs(y = "", x = "") + ggtitle("Average Rating for Each Decade")
+mean_plot
+
+# multi=series bar chart (?)
+
+
+```
+
+# Customizing the sounds of the decades plot
+
+```{r stacked bar chart for average songs}
+# first, convert the data frame to a matrix to pass through barplot
+spotify_data_zeitgeist_matrix <- as.matrix(spotify_data_zeitgeist)
+renamed_4legend <- c("loudness", "speechiness", "acousticness"
+             , "instrumentalness", "liveness", "decade")
+colnames(spotify_data_zeitgeist_matrix) <- renamed_4legend
+# then, transpose the data because the first time I did this it was sideways
+spotify_data_zeitgeist_matrix <- t(spotify_data_zeitgeist_matrix)
+# get rid of mean.loudness because it is an outlier and hides the rest of the plot
+spotify_data_zeitgeist_matrix <- spotify_data_zeitgeist_matrix[-1,]
+spotify_data_zeitgeist_matrix <- spotify_data_zeitgeist_matrix[-5,]
+
+barplot(spotify_data_zeitgeist_matrix, border = NA, space = 0.25,
+        xlab = "", ylab = "rating", main = "sounds of the decades"
+        , sub = "mean value of audio track characteristics for the last one-hundred years"
+        , legend.text = TRUE
+        , col = c("#0f2a56","#2a8897","#e8a266", "#e66b37"))
+```
+
+# Customizing the duration plot
+
+```{r scatter plot with high density lines}
+# Then, plot the points
+# I want to change milliseconds to minutes, divide vector by 60,000, but only once:
+spotify_data$duration_ms <- (spotify_data$duration_ms)/60000
+plot((tapply(spotify_data$duration_ms, spotify_data$decade, mean))
+      , type="p", bty = "n") # wanted to do y-axis in descending order, making a vector of a range:
+range.duration <- c(0,5)
+# combining high density vertical lines (h) with p
+plot((tapply(spotify_data$duration_ms, spotify_data$decade, mean))
+     , type="h", ylab = "Duration (in minutes)", xlab = "Decade"
+     , main = "Average Lengths of Audio Tracks, 1920-2020", ylim = range(range.duration)
+     , bty = "n")
+points((tapply(spotify_data$duration_ms, spotify_data$decade, mean))
+       , pch=19, col="#0047ab", cex = 1.4, bty = "n")
+```
+
+# Trying to flip the duration chart so it looks like music
+```{r rise from the ashes}
+# I want the years to show in descending order:
+barplot((tapply(spotify_data$duration_ms, spotify_data$decade, mean))
+        , horiz = TRUE)
+barplot(rev(tapply(spotify_data$duration_ms, spotify_data$decade, mean))
+        , horiz = T
+        , las = 1
+        , xlab = "duration (in minutes)"
+        , main = "average length of audio tracks, 1920-2020"
+        , las = 1
+        , col = c("#0f2a56")
+        , space = 2
+        , bty = "n"
+        #, xlim = range.duration
+        )
+```
+
+# Since the network didn't work out, decided to do a wordcloud of song titles:
+
+```{r seventies titles}
+# wordcloud steps from :
+# https://towardsdatascience.com/create-a-word-cloud-with-r-bde3e7422e8a 
+# load libraries
+library(wordcloud)
+library(RColorBrewer)
+library(tm)
+
+# tried to take remaster / remastered out but failed
+spotify_data$name <- gsub("remaster", "", spotify_data$name)
+spotify_data$name <- gsub("remastered", "", spotify_data$name)
+
+text <- spotify_data$name[spotify_data$decade == "1970s"]
+titles <- Corpus(VectorSource(text))
+
+# Clean the data
+titles <- titles %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(stripWhitespace)
+titles <- tm_map(titles, content_transformer(tolower))
+titles <- tm_map(titles, removeWords, stopwords("english"))
+
+# Create a data frame that contains each word and their frequency:
+dtm <- TermDocumentMatrix(titles) 
+matrix <- as.matrix(dtm) # error: vector memory exhausted, even after upping limit
+words <- sort(rowSums(matrix),decreasing=TRUE) 
+df <- data.frame(word = names(words),freq=words)
+
+#generate the word cloud:
+set.seed(1234) # for reproducibility 
+wordcloud(words = df$word, freq = df$freq, min.freq = 1, max.words=200
+          , random.order=FALSE, rot.per=0.35
+          , colors = c("#0f2a56","#2a8897","#e8a266", "#e66b37"))
+```
+# Finally, I need some single dimension plots showing distribution ...
+
+```{r tempo}
+hist(spotify_data$tempo
+     , border = NULL
+     , xlab = "tempo"
+     , ylab = "frequency"
+     , col = "#0f2a56"
+     , main = "tempo distribution")
+```
+# All data from : https://www.kaggle.com/search?q=spotify+1922-2021+in%3Adatasets 
