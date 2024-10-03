@@ -1,3 +1,3 @@
-# data-analysis
+# Coursework
 
-- this repository is where my projects involving data analysis live
+- This repository is a collection of my academic projects.
